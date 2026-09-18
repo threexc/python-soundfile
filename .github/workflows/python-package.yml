@@ -8,7 +8,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, windows-11-arm, macos-latest]
+        os: [ubuntu-latest, ubuntu-24.04-riscv, windows-latest, windows-11-arm, macos-latest]
         python-version:
           - "3.10"
           - "3.11"
@@ -31,11 +31,25 @@ jobs:
             python-version: "pypy-3.10"
           - os: windows-11-arm
             python-version: "pypy-3.11"
+          - os: ubuntu-24.04-riscv
+            python-version: "3.10"
+          - os: ubuntu-24.04-riscv
+            python-version: "3.11"
+          - os: ubuntu-24.04-riscv
+            python-version: "pypy-3.10"
+          - os: ubuntu-24.04-riscv
+            python-version: "pypy-3.11"
 
     steps:
       - uses: actions/checkout@v6
         with:
           submodules: true
+      - name: Use RISE Python Packaging registry for riscv wheels
+        if: matrix.os == 'ubuntu-24.04-riscv'
+        run: |
+          echo "UV_INDEX=https://pypi.riseproject.dev/simple/" >> "$GITHUB_ENV"
+          echo "UV_INDEX_STRATEGY=unsafe-best-match" >> "$GITHUB_ENV"
+          echo "UV_ONLY_BINARY_FLAGS=--only-binary cffi" >> "$GITHUB_ENV"
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
           # uv defaults to the emulated x86_64 interpreter on Windows ARM64
@@ -46,10 +60,10 @@ jobs:
         run: uv pip install numpy pytest
       - name: "Workaround: Generate _soundfile.py explicitly"
         run: |
-          uv pip install cffi>=1.0
+          uv pip install cffi>=1.0 $UV_ONLY_BINARY_FLAGS
           python soundfile_build.py
       - name: Install editable package
-        run: uv pip install --editable . --verbose
+        run: uv pip install --editable . --verbose $UV_ONLY_BINARY_FLAGS
       - name: Run tests
         run: python -m pytest
 
